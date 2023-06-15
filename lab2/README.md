@@ -6,6 +6,7 @@
 # 关闭 ASLR
 sudo sysctl -w kernel.randomize_va_space=0
 ```
+PS：重启后ASLR需要重新运行命令关闭
 
 ## 0.2 安装seccomp
 
@@ -227,7 +228,8 @@ ping正常执行如图所示：
 
 ![image-20230530184218034](assets/image-20230530184218034.png)
 
-修改其配置文件`/etc/apparmor.d/usr.bin.ping`为
+修改其配置文件`/etc/apparmor.d/usr.bin.ping`：
+（该文件可能不存在，直接创建修改内容即可）
 
 ![image-20230530184502170](assets/image-20230530184502170.png)
 
@@ -246,7 +248,10 @@ include <tunables/global>
   /usr/bin/ping mr,
 }
 ```
-
+将新的profile文件加载到AppArmor中
+```bash
+sudo apparmor_parser -r /etc/apparmor.d/usr.bin.ping
+```
 AppArmor生效，ping程序无法正常工作
 
 ![image-20230531162414401](assets/image-20230531162414401.png)
@@ -279,7 +284,7 @@ sudo chmod +s touchstone
 
 寻找溢出位置
 
-必须找到getToken()栈帧内存储返回地址的位置与缓冲区s之间的距离。由于缓冲区变量s的长度为1024，故此长度一定大于1024，使用如下代码进行测试
+必须找到getToken()栈帧内存储返回地址的位置与缓冲区s之间的距离。由于缓冲区变量s的长度为1024，故此长度一定大于1024，修改攻击脚本，使用如下代码进行测试
 
 ```python
 req += b'A' * 1024 + cyclic(200)
@@ -293,7 +298,10 @@ python3 exploit.py 2
 
 ![image-20230523203808465](assets/image-20230523203808465.png)
 
-`sudo dmesg` 查看崩溃信息
+查看崩溃信息（若缓冲区信息过多，可先用``sudo dmesg --clear``清理，再执行脚本攻击查看）
+```bash
+sudo dmesg
+```
 
 ![image-20230523203857867](assets/image-20230523203857867.png)
 
@@ -581,7 +589,7 @@ sudo chown root /tmp/test.txt
 
 进行攻击，尝试删除/tmp/test.txt
 
-```
+```bash
 python3 exploit.py 2
 ```
 
@@ -690,7 +698,7 @@ ll /tmp/test.txt
 
 进行攻击
 
-```
+```bash
 python3 exploit.py 2
 ```
 
@@ -708,7 +716,7 @@ seccomp对10号系统调用进行了拦截。
 
 尝试获取shell。
 
-```
+```bash
 python3 exploit.py 1
 ```
 
@@ -752,7 +760,7 @@ sudo ./touchstone
 
 使用aa-genprof对banksv生成配置文件
 
-```
+```bash
 sudo aa-genprof ~/Desktop/ISSecLab/lab2/src/task6/banksv
 ```
 
@@ -784,7 +792,7 @@ include <tunables/global>
 
 重新加载配置文件使以上配置文件生效
 
-```
+```bash
 sudo apparmor_parser -r /etc/apparmor.d/home.kali.Desktop.ISSecLab.lab2.src.task6.banksv
 ```
 
@@ -794,7 +802,7 @@ sudo apparmor_parser -r /etc/apparmor.d/home.kali.Desktop.ISSecLab.lab2.src.task
 
 尝试获取shell
 
-```
+```bash
 python3 exploit.py 1
 ```
 
@@ -802,7 +810,7 @@ python3 exploit.py 1
 
 查看日志
 
-```
+```bash
 sudo dmesg
 ```
 
