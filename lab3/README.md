@@ -265,6 +265,7 @@ CSRF_Login
 ![image-20230530221858082](assets/image-20230530221858082.png)
 
 # 2. 任务2 XSS
+**更换网址为 http://www.xsslabelgg.com 后，再进行下列实验**
 
 ## 2.1 盗取Cookie
 
